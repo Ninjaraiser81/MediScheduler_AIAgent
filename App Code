@@ -1,0 +1,1319 @@
+src/app/dashboard/page.tsx (continued)
+
+'use client';
+
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Calendar } from '@/components/ui/calendar';
+import { useState, useEffect } from 'react';
+import {
+  Bar,
+  BarChart,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Cell,
+  CartesianGrid,
+  Legend,
+} from 'recharts';
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartConfig,
+} from '@/components/ui/chart';
+import { useRouter } from 'next/navigation';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Search, Printer } from 'lucide-react';
+
+type Appointment = {
+  patient: string;
+  time: string;
+  type: string;
+  status: 'Confirmed' | 'Pending' | 'Cancelled';
+  formattedTime?: string;
+  doctor?: string;
+};
+
+const patientData = [
+  { month: 'Jan', patients: 854 },
+  { month: 'Feb', patients: 921 },
+  { month: 'Mar', patients: 1054 },
+  { month: 'Apr', patients: 1123 },
+  { month: 'May', patients: 1189 },
+  { month: 'Jun', patients: 1254 },
+];
+
+const appointmentsThisMonthData = [{ name: 'This Month', value: 234, fill: "hsl(var(--primary))" }, { name: 'Last Month', value: 83, fill: "hsl(var(--secondary))" }];
+const upcomingAppointmentsData = [
+    { day: 'Mon', appointments: 5 },
+    { day: 'Tue', appointments: 8 },
+    { day: 'Wed', appointments: 3 },
+    { day: 'Thu', appointments: 6 },
+    { day: 'Fri', appointments: 7 },
+];
+const completedAppointmentsData = [{ name: 'Completed', value: 573 }, { name: 'Pending', value: 21 }];
+const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))'];
+
+
+const chartConfig: ChartConfig = {
+  patients: {
+    label: 'Patients',
+    color: 'hsl(var(--primary))',
+  },
+  appointments: {
+    label: 'Appointments',
+     color: 'hsl(var(--primary))',
+  },
+   value: {
+    label: 'Value',
+    color: 'hsl(var(--primary))',
+  },
+};
+
+export default function DashboardPage() {
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isClient, setIsClient] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    setIsClient(true);
+    // Load appointments from local storage
+    const storedAppointments = localStorage.getItem('appointments');
+    if (storedAppointments) {
+        const allAppointments: Appointment[] = JSON.parse(storedAppointments);
+        const upcomingAppointments = allAppointments.filter(apt => new Date(apt.time) >= new Date());
+        setAppointments(upcomingAppointments);
+    }
+  }, []);
+
+  const handlePrintAppointment = (appointment: Appointment) => {
+    const params = new URLSearchParams({
+      appointment: JSON.stringify(appointment),
+    });
+    router.push(`/dashboard/appointment-confirmation?${params.toString()}`);
+  };
+  
+  const filteredAppointments = appointments.filter(appointment =>
+    appointment.patient.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const formattedAppointments = isClient
+    ? filteredAppointments.map((apt) => ({
+        ...apt,
+        formattedTime: new Date(apt.time).toLocaleString([], {
+          dateStyle: 'medium',
+          timeStyle: 'short',
+        }),
+      }))
+    : [];
+
+  return (
+    <div className="flex flex-col gap-4">
+      <h1 className="text-2xl font-bold">Dashboard</h1>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Total Patients</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="h-[120px] w-full">
+              <LineChart data={patientData} margin={{ top: 5, right: 20, left: -20, bottom: 0 }}>
+                 <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="month"
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                />
+                <Tooltip
+                  cursor={false}
+                  content={<ChartTooltipContent hideLabel indicator='dot'/>}
+                />
+                <Line
+                  dataKey="patients"
+                  type="monotone"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2}
+                  dot={true}
+                />
+              </LineChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Upcoming Appointments</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="h-[120px] w-full">
+              <BarChart data={upcomingAppointmentsData} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                <XAxis dataKey="day" tickLine={false} axisLine={false} tickMargin={8} fontSize={12} />
+                <YAxis hide={true} />
+                <Tooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                <Bar dataKey="appointments" fill="hsl(var(--primary))" radius={4} />
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Appointments This Month</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="h-[120px] w-full">
+                <BarChart data={appointmentsThisMonthData} layout="vertical" margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+                    <XAxis type="number" hide={true} />
+                    <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} tickMargin={4} fontSize={12} width={60} />
+                    <Tooltip cursor={false} content={<ChartTooltipContent indicator="line" />} />
+                    <Bar dataKey="value" layout="vertical" radius={4}>
+                      {appointmentsThisMonthData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Bar>
+                </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Completed Appointments</CardTitle>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <ChartContainer config={chartConfig} className="h-[120px] w-full">
+                <PieChart>
+                    <Tooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                    <Pie data={completedAppointmentsData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} >
+                        {completedAppointmentsData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                    </Pie>
+                    <Legend/>
+                </PieChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <Card className="lg:col-span-4">
+          <CardHeader>
+            <div className='flex justify-between items-start'>
+                <div>
+                    <CardTitle>Upcoming Appointments</CardTitle>
+                    <CardDescription>
+                      You have {filteredAppointments.length} upcoming appointments.
+                    </CardDescription>
+                </div>
+            </div>
+            <div className="relative mt-4">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Search by patient name..."
+                className="pl-8 sm:w-64"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Patient</TableHead>
+                  <TableHead>Time</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {formattedAppointments.map((appointment, index) => (
+                  <TableRow key={index}>
+                    <TableCell>{appointment.patient}</TableCell>
+                    <TableCell>
+                      {isClient
+                        ? appointment.formattedTime
+                        : '...'}
+                    </TableCell>
+                    <TableCell>{appointment.type}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          appointment.status === 'Confirmed'
+                            ? 'default'
+                            : appointment.status === 'Pending'
+                            ? 'secondary'
+                            : 'destructive'
+                        }
+                      >
+                        {appointment.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="outline" size="sm" onClick={() => handlePrintAppointment(appointment)}>
+                          <Printer className="mr-2 h-4 w-4" />
+                          Print
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle>Calendar</CardTitle>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Calendar
+              mode="single"
+              selected={date}
+              onSelect={setDate}
+              className="rounded-md"
+            />
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+src/app/dashboard/new-appointment/page.tsx
+
+'use client';
+
+import { useState, useEffect, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { useForm, FormProvider } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from '@/components/ui/card';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { suggestAppointmentSlots } from '@/ai/flows/suggest-appointment-slots';
+import { Loader2 } from 'lucide-react';
+
+const appointmentSchema = z.object({
+  patientName: z.string().min(1, 'Patient name is required'),
+  doctorName: z.string().min(1, 'Doctor name is required'),
+  reasonForVisit: z.string().min(1, 'Reason for visit is required'),
+  patientPreferences: z.string().optional(),
+});
+
+type AppointmentFormValues = z.infer<typeof appointmentSchema>;
+
+function NewAppointmentPageComponent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [suggestedSlots, setSuggestedSlots] = useState<string[]>([]);
+  const [patientSummary, setPatientSummary] = useState('');
+
+  const patientName = searchParams.get('patientName') || '';
+  const reasonForVisit = searchParams.get('reasonForVisit') || '';
+
+  const methods = useForm<AppointmentFormValues>({
+    resolver: zodResolver(appointmentSchema),
+    defaultValues: {
+      patientName: '',
+      doctorName: 'Dr. Evelyn Reed',
+      reasonForVisit: '',
+      patientPreferences: 'Prefers afternoon appointments.',
+    },
+  });
+
+  const { handleSubmit, setValue, getValues } = methods;
+
+  useEffect(() => {
+    if (patientName) {
+      setValue('patientName', patientName);
+    }
+    if (reasonForVisit) {
+      setValue('reasonForVisit', reasonForVisit);
+    }
+  }, [patientName, reasonForVisit, setValue]);
+
+  const onSubmit = async (data: AppointmentFormValues) => {
+    setIsLoading(true);
+    setSuggestedSlots([]);
+    try {
+      const summary = `
+        Patient: ${data.patientName}
+        Reason for visit: ${data.reasonForVisit}
+      `;
+      setPatientSummary(summary);
+      const result = await suggestAppointmentSlots({
+        patientPreferences: data.patientPreferences || 'Any time is fine.',
+        patientSummary: summary,
+      });
+      setSuggestedSlots(result.suggestedAppointmentSlots);
+    } catch (error) {
+      console.error('Failed to get suggestions:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBooking = (slot: string) => {
+    const values = getValues();
+    const newAppointment = {
+      patient: values.patientName,
+      doctor: values.doctorName,
+      time: slot,
+      type: 'Consultation',
+      status: 'Confirmed',
+    };
+
+    // Save to local storage
+    const storedAppointments = localStorage.getItem('appointments');
+    const appointments = storedAppointments ? JSON.parse(storedAppointments) : [];
+    appointments.push(newAppointment);
+    localStorage.setItem('appointments', JSON.stringify(appointments));
+    
+    const params = new URLSearchParams({
+      appointment: JSON.stringify(newAppointment),
+    });
+
+    router.push(`/dashboard/appointment-confirmation?${params.toString()}`);
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <h1 className="text-2xl font-bold">New Appointment</h1>
+      <Card>
+        <CardHeader>
+          <CardTitle>Create a New Appointment</CardTitle>
+        </CardHeader>
+        <FormProvider {...methods}>
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <CardContent className="space-y-6">
+              <FormField
+                name="patientName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Patient Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} readOnly />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                name="doctorName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Doctor Name</FormLabel>
+                    <FormControl>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a doctor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Dr. Evelyn Reed">
+                            Dr. Evelyn Reed (Allergist)
+                          </SelectItem>
+                          <SelectItem value="Dr. Marcus Thorne">
+                            Dr. Marcus Thorne (Cardiologist)
+                          </SelectItem>
+                          <SelectItem value="Dr. Elena Petrova">
+                            Dr. Elena Petrova (Dermatologist)
+                          </SelectItem>
+                           <SelectItem value="Dr. Benjamin Carter">
+                            Dr. Benjamin Carter (Neurologist)
+                          </SelectItem>
+                           <SelectItem value="Dr. Sofia Rossi">
+                            Dr. Sofia Rossi (Pediatrician)
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                name="reasonForVisit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Reason for Visit</FormLabel>
+                    <FormControl>
+                      <Textarea {...field} readOnly />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                name="patientPreferences"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Time Preferences</FormLabel>
+                    <FormControl>
+                      <Input
+                        {...field}
+                        placeholder="e.g., 'afternoon', 'morning on weekends'"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+            <CardFooter>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  'Find Available Timings'
+                )}
+              </Button>
+            </CardFooter>
+          </form>
+        </FormProvider>
+      </Card>
+
+      {suggestedSlots.length > 0 && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Suggested Appointment Slots</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {suggestedSlots.map((slot, index) => (
+                <Card
+                  key={index}
+                  className="p-4 flex flex-col items-center justify-center"
+                >
+                  <p className="font-semibold">
+                    {new Date(slot).toLocaleDateString()}
+                  </p>
+                  <p>
+                    {new Date(slot).toLocaleTimeString([], {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </p>
+                  <Button
+                    onClick={() => handleBooking(slot)}
+                    className="mt-4"
+                  >
+                    Book Now
+                  </Button>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+
+export default function NewAppointmentPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <NewAppointmentPageComponent />
+        </Suspense>
+    )
+}
+
+src/app/dashboard/patient-intake/page.tsx
+
+'use client';
+
+import { useForm, FormProvider } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
+import { useRouter } from 'next/navigation';
+import { Separator } from '@/components/ui/separator';
+
+const patientInfoSchema = z.object({
+  lastName: z.string().min(1, 'Last name is required'),
+  firstName: z.string().min(1, 'First name is required'),
+  middleInitial: z.string().optional(),
+  dob: z.string().min(1, 'Date of birth is required'),
+  gender: z.enum(['male', 'female', 'other'], { required_error: 'Gender is required.' }),
+  phone: z.string().min(1, 'Phone number is required'),
+  email: z.string().email('Invalid email address'),
+  streetAddress: z.string().min(1, 'Street address is required'),
+  city: z.string().min(1, 'City is required'),
+  state: z.string().min(1, 'State is required'),
+  zip: z.string().min(1, 'ZIP code is required'),
+});
+
+const emergencyContactSchema = z.object({
+  emergencyContactName: z.string().min(1, 'Emergency contact name is required'),
+  relationship: z.string().min(1, 'Relationship is required'),
+  emergencyPhone: z.string().min(1, 'Emergency phone number is required'),
+});
+
+const insuranceInfoSchema = z.object({
+  hasInsurance: z.enum(['yes', 'no'], { required_error: 'This field is required' }),
+  primaryInsurance: z.string().optional(),
+  insuranceCompany: z.string().optional(),
+  memberId: z.string().optional(),
+  groupNumber: z.string().optional(),
+  secondaryInsurance: z.string().optional(),
+}).superRefine((data, ctx) => {
+    if (data.hasInsurance === 'yes') {
+        if (!data.primaryInsurance) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Primary insurance is required.", path: ['primaryInsurance'] });
+        }
+        if (!data.insuranceCompany) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Insurance company is required.", path: ['insuranceCompany'] });
+        }
+        if (!data.memberId) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Member ID is required.", path: ['memberId'] });
+        }
+        if (!data.groupNumber) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Group number is required.", path: ['groupNumber'] });
+        }
+    }
+});
+
+
+const symptomsSchema = z.object({
+  primaryReason: z.string().min(1, "Please describe your main concern."),
+  symptomDuration: z.string({ required_error: 'Symptom duration is required.' }),
+  symptoms: z.array(z.string()).refine(value => value.some(item => item), {
+    message: "You have to select at least one symptom.",
+  }),
+});
+
+const allergyHistorySchema = z.object({
+  knownAllergies: z.enum(['yes', 'no'], { required_error: 'This field is required.' }),
+  allergyDetails: z.string().optional(),
+  allergyTesting: z.enum(['yes', 'no'], { required_error: 'This field is required.' }),
+  epiPen: z.enum(['yes', 'no'], { required_error: 'This field is required.' }),
+});
+
+const medicalInfoSchema = z.object({
+  currentMedications: z.string().optional(),
+  allergyMedications: z.array(z.string()).optional(),
+  medicalHistory: z.array(z.string()).optional(),
+  familyHistory: z.string().optional(),
+  preVisitInstructions: z.boolean().refine((val) => val === true, {
+    message: "You must acknowledge the pre-visit instructions.",
+  }),
+  patientSignature: z.boolean().refine((val) => val === true, {
+    message: "You must sign to acknowledge.",
+  }),
+  signatureDate: z.string().min(1, "Date is required."),
+});
+
+const intakeFormSchema = z.intersection(patientInfoSchema, emergencyContactSchema)
+  .and(insuranceInfoSchema)
+  .and(symptomsSchema)
+  .and(allergyHistorySchema)
+  .and(medicalInfoSchema);
+
+type IntakeFormValues = z.infer<typeof intakeFormSchema>;
+
+export default function PatientIntakePage() {
+  const router = useRouter();
+
+  const methods = useForm<IntakeFormValues>({
+    resolver: zodResolver(intakeFormSchema),
+    defaultValues: {
+      lastName: '',
+      firstName: '',
+      middleInitial: '',
+      dob: '',
+      gender: undefined,
+      phone: '',
+      email: '',
+      streetAddress: '',
+      city: '',
+      state: '',
+      zip: '',
+      emergencyContactName: '',
+      relationship: '',
+      emergencyPhone: '',
+      hasInsurance: undefined,
+      primaryInsurance: '',
+      insuranceCompany: '',
+      memberId: '',
+      groupNumber: '',
+      secondaryInsurance: '',
+      primaryReason: '',
+      symptomDuration: undefined,
+      symptoms: [],
+      knownAllergies: undefined,
+      allergyDetails: '',
+      allergyTesting: undefined,
+      epiPen: undefined,
+      currentMedications: '',
+      allergyMedications: [],
+      medicalHistory: [],
+      familyHistory: '',
+      preVisitInstructions: false,
+      patientSignature: false,
+      signatureDate: new Date().toLocaleDateString('en-CA'),
+    },
+  });
+
+  const { handleSubmit, watch, formState: { errors } } = methods;
+  const hasInsurance = watch('hasInsurance');
+
+  const onSubmit = async (data: IntakeFormValues) => {
+    const patientName = `${data.firstName} ${data.lastName}`;
+    const reasonForVisit = data.primaryReason;
+    router.push(`/dashboard/new-appointment?patientName=${encodeURIComponent(patientName)}&reasonForVisit=${encodeURIComponent(reasonForVisit)}`);
+  };
+
+  const symptomOptions = ["Sneezing", "Runny nose", "Itchy eyes", "Watery eyes", "Skin rash/hives", "Wheezing", "Shortness of breath", "Coughing", "Chest tightness", "Sinus pressure", "Headaches"];
+  const allergyMedOptions = ["Claritin (loratadine)", "Zyrtec (cetirizine)", "Allegra (fexofenadine)", "Benadryl (diphenhydramine)", "Flonase/Nasonex (nasal sprays)", "Other"];
+  const medHistoryOptions = ["Asthma", "Eczema", "Sinus infections", "Pneumonia", "Bronchitis", "High blood pressure", "Heart disease", "Diabetes", "Other"];
+
+  return (
+    <div className="flex flex-col gap-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>New Patient Intake Form</CardTitle>
+        </CardHeader>
+        <FormProvider {...methods}>
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <CardContent className="space-y-8">
+              <section className="space-y-4">
+                <h3 className="text-xl font-semibold">Patient Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField name="lastName" render={({ field }) => <FormItem><FormLabel>Last Name*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
+                  <FormField name="firstName" render={({ field }) => <FormItem><FormLabel>First Name*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
+                  <FormField name="middleInitial" render={({ field }) => <FormItem><FormLabel>Middle Initial</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>} />
+                </div>
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                   <FormField name="dob" render={({ field }) => <FormItem><FormLabel>Date of Birth*</FormLabel><FormControl><Input {...field} type="date" /></FormControl><FormMessage /></FormItem>} />
+                   <FormField
+                    name="gender"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Gender*</FormLabel>
+                        <FormControl>
+                          <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex gap-4 items-center pt-2">
+                            <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="male" /></FormControl><FormLabel className="font-normal">Male</FormLabel></FormItem>
+                            <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="female" /></FormControl><FormLabel className="font-normal">Female</FormLabel></FormItem>
+                            <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="other" /></FormControl><FormLabel className="font-normal">Other</FormLabel></FormItem>
+                          </RadioGroup>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                 </div>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField name="phone" render={({ field }) => <FormItem><FormLabel>Home Phone*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
+                  <FormField name="email" render={({ field }) => <FormItem><FormLabel>Email Address*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
+                 </div>
+                 <FormField name="streetAddress" render={({ field }) => <FormItem><FormLabel>Street Address*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
+                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField name="city" render={({ field }) => <FormItem><FormLabel>City*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
+                  <FormField name="state" render={({ field }) => <FormItem><FormLabel>State*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
+                  <FormField name="zip" render={({ field }) => <FormItem><FormLabel>ZIP Code*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
+                 </div>
+              </section>
+
+              <Separator />
+
+              <section className="space-y-6">
+                  <div>
+                      <h3 className="text-xl font-semibold mb-4">Emergency Contact</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <FormField name="emergencyContactName" render={({ field }) => <FormItem><FormLabel>Emergency Contact Name*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
+                          <FormField name="relationship" render={({ field }) => <FormItem><FormLabel>Relationship*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
+                          <FormField name="emergencyPhone" render={({ field }) => <FormItem><FormLabel>Phone Number*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
+                      </div>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold mb-4">Insurance Information</h3>
+                     <FormField name="hasInsurance" render={({ field }) => (<FormItem><FormLabel>Do you have insurance?*</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex gap-4 pt-2"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="yes" /></FormControl><FormLabel className="font-normal">Yes</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="no" /></FormControl><FormLabel className="font-normal">No</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>)} />
+
+                    {hasInsurance === 'yes' && (
+                       <div className="space-y-4 mt-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField name="primaryInsurance" render={({ field }) => <FormItem><FormLabel>Primary Insurance*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
+                                <FormField name="secondaryInsurance" render={({ field }) => <FormItem><FormLabel>Secondary Insurance (if applicable)</FormLabel><FormControl><Input {...field} /></FormControl></FormItem>} />
+                                <FormField name="insuranceCompany" render={({ field }) => <FormItem><FormLabel>Insurance Company*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
+                                <FormField name="memberId" render={({ field }) => <FormItem><FormLabel>Member ID*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
+                                <FormField name="groupNumber" render={({ field }) => <FormItem><FormLabel>Group Number*</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>} />
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-2">Note: Please bring insurance cards and photo ID to your appointment</p>
+                       </div>
+                    )}
+                  </div>
+              </section>
+
+              <Separator />
+
+              <section className="space-y-6">
+                <h3 className="text-xl font-semibold">Chief Complaint & Symptoms</h3>
+                <FormField name="primaryReason" render={({ field }) => <FormItem><FormLabel>What is the primary reason for your visit today?*</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>} />
+                <FormField
+                    name="symptomDuration"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>How long have you been experiencing these symptoms?*</FormLabel>
+                        <FormControl>
+                          <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex flex-wrap gap-4 pt-2">
+                            <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="less-than-1-week" /></FormControl><FormLabel className="font-normal">Less than 1 week</FormLabel></FormItem>
+                            <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="1-6-weeks" /></FormControl><FormLabel className="font-normal">1-6 weeks</FormLabel></FormItem>
+                            <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="1-6-months" /></FormControl><FormLabel className="font-normal">1-6 months</FormLabel></FormItem>
+                            <FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="more-than-6-months" /></FormControl><FormLabel className="font-normal">More than 6 months</FormLabel></FormItem>
+                          </RadioGroup>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                <FormField
+                    name="symptoms"
+                    render={() => (
+                      <FormItem>
+                         <FormLabel>Please check all symptoms you are currently experiencing:*</FormLabel>
+                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                          {symptomOptions.map(item => (
+                              <FormField
+                              key={item}
+                              name="symptoms"
+                              render={({ field }) => (
+                                  <FormItem key={item} className="flex flex-row items-start space-x-3 space-y-0">
+                                  <FormControl>
+                                      <Checkbox
+                                      checked={field.value?.includes(item)}
+                                      onCheckedChange={(checked) => {
+                                          return checked
+                                          ? field.onChange([...(field.value || []), item])
+                                          : field.onChange(field.value?.filter((value) => value !== item))
+                                      }}
+                                      />
+                                  </FormControl>
+                                  <FormLabel className="font-normal">{item}</FormLabel>
+                                  </FormItem>
+                              )}
+                              />
+                          ))}
+                          </div>
+                          <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+              </section>
+
+              <Separator />
+
+              <section className="space-y-6">
+                  <h3 className="text-xl font-semibold">Allergy & Medical History</h3>
+                  <FormField name="knownAllergies" render={({ field }) => (<FormItem><FormLabel>Do you have any known allergies?*</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex gap-4 pt-2"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="yes" /></FormControl><FormLabel className="font-normal">Yes</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="no" /></FormControl><FormLabel className="font-normal">No</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>)} />
+                  {methods.watch('knownAllergies') === 'yes' && <FormField name="allergyDetails" render={({ field }) => <FormItem><FormLabel>If yes, please list all known allergies and reactions:</FormLabel><FormControl><Textarea {...field} placeholder="Include foods, medications, environmental allergens, etc." /></FormControl></FormItem>} />}
+                  <FormField name="allergyTesting" render={({ field }) => (<FormItem><FormLabel>Have you ever had allergy testing before?*</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex gap-4 pt-2"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="yes" /></FormControl><FormLabel className="font-normal">Yes</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="no" /></FormControl><FormLabel className="font-normal">No</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>)} />
+                  <FormField name="epiPen" render={({ field }) => (<FormItem><FormLabel>Have you ever used an EpiPen or had a severe allergic reaction?*</FormLabel><FormControl><RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex gap-4 pt-2"><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="yes" /></FormControl><FormLabel className="font-normal">Yes</FormLabel></FormItem><FormItem className="flex items-center space-x-2"><FormControl><RadioGroupItem value="no" /></FormControl><FormLabel className="font-normal">No</FormLabel></FormItem></RadioGroup></FormControl><FormMessage /></FormItem>)} />
+
+                  <h3 className="text-lg font-semibold">Current Medications</h3>
+                  <FormField name="currentMedications" render={({ field }) => <FormItem><FormLabel>Please list ALL current medications, vitamins, and supplements</FormLabel><FormControl><Textarea {...field} placeholder="Include prescription medications, over-the-counter drugs, vitamins, and herbal supplements. Include dosage if known."/></FormControl></FormItem>} />
+                  <FormField name="allergyMedications" render={() => ( <FormItem> <FormLabel>Are you currently taking any of these allergy medications?</FormLabel> <div className="grid grid-cols-2 md:grid-cols-3 gap-4"> {allergyMedOptions.map(item => (<FormField key={item} name="allergyMedications" render={({ field }) => (<FormItem key={item} className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value?.includes(item)} onCheckedChange={(checked) => { return checked ? field.onChange([...(field.value || []), item]) : field.onChange(field.value?.filter(v => v !== item)) }} /></FormControl><FormLabel className="font-normal">{item}</FormLabel></FormItem> )} />))} </div></FormItem>)} />
+
+                  <h3 className="text-lg font-semibold">Medical History</h3>
+                  <FormField name="medicalHistory" render={() => ( <FormItem> <FormLabel>Please check any conditions you have or have had:</FormLabel> <div className="grid grid-cols-2 md:grid-cols-4 gap-4"> {medHistoryOptions.map(item => (<FormField key={item} name="medicalHistory" render={({ field }) => (<FormItem key={item} className="flex flex-row items-start space-x-3 space-y-0"><FormControl><Checkbox checked={field.value?.includes(item)} onCheckedChange={(checked) => { return checked ? field.onChange([...(field.value || []), item]) : field.onChange(field.value?.filter(v => v !== item)) }} /></FormControl><FormLabel className="font-normal">{item}</FormLabel></FormItem> )} />))} </div></FormItem>)} />
+                  <FormField name="familyHistory" render={({ field }) => <FormItem><FormLabel>Please describe any family history of allergies, asthma, or related conditions</FormLabel><FormControl><Textarea {...field} /></FormControl></FormItem>} />
+
+                  <h3 className="text-lg font-semibold">Important Pre-visit Instructions</h3>
+                  <div className="p-4 border rounded-md bg-amber-50 border-amber-200">
+                    <p className="font-bold text-amber-800">CRITICAL: If allergy testing is planned, you MUST stop the following medications 7 days before your appointment:</p>
+                    <ul className="list-disc list-inside text-sm text-amber-700 mt-2">
+                      <li>All antihistamines (Claritin, Zyrtec, Allegra, Benadryl)</li>
+                      <li>Cold medications containing antihistamines</li>
+                      <li>Sleep aids like Tylenol-PM</li>
+                    </ul>
+                    <p className="text-sm mt-2 text-amber-700">You MAY continue: Nasal sprays (Flonase, Nasonex), asthma inhalers, and prescription medications.</p>
+                  </div>
+                   <FormField name="preVisitInstructions" render={({ field }) => <FormItem className="flex flex-row items-start space-x-3 space-y-0 pt-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>I understand the pre-visit medication instructions.*</FormLabel><FormMessage /></div></FormItem>} />
+
+                  <h3 className="text-lg font-semibold">Patient Signature</h3>
+                  <p className="text-sm">I certify that the information provided is accurate and complete to the best of my knowledge. I understand that providing false information may affect my treatment and care.</p>
+                  <FormField name="patientSignature" render={({ field }) => <FormItem className="flex flex-row items-start space-x-3 space-y-0 pt-4"><FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl><div className="space-y-1 leading-none"><FormLabel>By checking this box, I am electronically signing this form.*</FormLabel><FormMessage /></div></FormItem>} />
+                  <FormField name="signatureDate" render={({ field }) => <FormItem><FormLabel>Date*</FormLabel><FormControl><Input {...field} type="date" readOnly /></FormControl><FormMessage /></FormItem>} />
+              </section>
+                {Object.keys(errors).length > 0 && (
+                  <p className="text-sm font-medium text-destructive mt-4">Please fill out all required fields before submitting.</p>
+                )}
+            </CardContent>
+            <CardFooter className="flex justify-end">
+                <Button type="submit">
+                    Proceed to Book Appointment
+                </Button>
+            </CardFooter>
+          </form>
+        </FormProvider>
+      </Card>
+    </div>
+  );
+}
+
+src/app/dashboard/history/page.tsx
+
+'use client';
+
+import { useState, useEffect, useMemo } from 'react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowUpDown, Printer } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+type Appointment = {
+  patient: string;
+  doctor: string;
+  time: string;
+  type: string;
+  status: 'Confirmed' | 'Pending' | 'Cancelled';
+  formattedTime?: string;
+};
+
+type SortKey = keyof Appointment | '';
+
+export default function HistoryPage() {
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [isClient, setIsClient] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('time');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'Confirmed' | 'Pending' | 'Cancelled'>('all');
+
+  useEffect(() => {
+    setIsClient(true);
+    // Load appointments from local storage
+    const storedAppointments = localStorage.getItem('appointments');
+    if (storedAppointments) {
+        const allAppointments: Appointment[] = JSON.parse(storedAppointments);
+        // Filter for past appointments for the history page
+        const pastAppointments = allAppointments.filter(apt => new Date(apt.time) < new Date());
+        
+        const formatted = pastAppointments.map(apt => ({
+        ...apt,
+        formattedTime: new Date(apt.time).toLocaleString([], {
+            dateStyle: 'medium',
+            timeStyle: 'short',
+        }),
+        }));
+        setAppointments(formatted);
+    }
+  }, []);
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortOrder('asc');
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const sortedAndFilteredAppointments = useMemo(() => {
+    let filtered = appointments;
+
+    if (searchTerm) {
+      filtered = filtered.filter(apt =>
+        apt.patient.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        apt.doctor.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (statusFilter !== 'all') {
+        filtered = filtered.filter(apt => apt.status === statusFilter);
+    }
+    
+    if (sortKey) {
+      filtered.sort((a, b) => {
+        const aValue = a[sortKey];
+        const bValue = b[sortKey];
+
+        if (aValue === undefined || bValue === undefined) return 0;
+        
+        let comparison = 0;
+        if(sortKey === 'time') {
+            comparison = new Date(a.time).getTime() - new Date(b.time).getTime();
+        } else if (aValue > bValue) {
+          comparison = 1;
+        } else if (aValue < bValue) {
+          comparison = -1;
+        }
+
+        return sortOrder === 'asc' ? comparison : -comparison;
+      });
+    }
+
+    return filtered;
+  }, [appointments, searchTerm, statusFilter, sortKey, sortOrder]);
+  
+  if (!isClient) {
+      return (
+          <div className="flex flex-col gap-4">
+              <h1 className="text-2xl font-bold">History</h1>
+              <p>Loading history...</p>
+          </div>
+      );
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <h1 className="text-2xl font-bold print:hidden">History</h1>
+      <Card className="printable-area">
+        <CardHeader>
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle>Appointment History</CardTitle>
+              <CardDescription>
+                A record of all past appointments.
+              </CardDescription>
+            </div>
+            <Button onClick={handlePrint} variant="outline" className="print:hidden">
+              <Printer className="mr-2" />
+              Print History
+            </Button>
+          </div>
+          <div className="flex flex-col md:flex-row gap-4 pt-4 print:hidden">
+            <Input
+              placeholder="Search by patient or doctor..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-sm"
+            />
+            <Select onValueChange={(value: 'all' | 'Confirmed' | 'Pending' | 'Cancelled') => setStatusFilter(value)} defaultValue="all">
+                <SelectTrigger className="w-full md:w-[180px]">
+                    <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="Confirmed">Confirmed</SelectItem>
+                    <SelectItem value="Pending">Pending</SelectItem>
+                    <SelectItem value="Cancelled">Cancelled</SelectItem>
+                </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>
+                   <Button variant="ghost" onClick={() => handleSort('patient')}>
+                    Patient
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </TableHead>
+                 <TableHead>
+                   <Button variant="ghost" onClick={() => handleSort('doctor')}>
+                    Doctor
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </TableHead>
+                <TableHead>
+                   <Button variant="ghost" onClick={() => handleSort('time')}>
+                    Date & Time
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </TableHead>
+                <TableHead>
+                    <Button variant="ghost" onClick={() => handleSort('type')}>
+                        Type
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                </TableHead>
+                <TableHead>
+                    <Button variant="ghost" onClick={() => handleSort('status')}>
+                        Status
+                        <ArrowUpDown className="ml-2 h-4 w-4" />
+                    </Button>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sortedAndFilteredAppointments.length > 0 ? (
+                sortedAndFilteredAppointments.map((appointment, index) => (
+                  <TableRow key={index}>
+                    <TableCell className="font-medium">{appointment.patient}</TableCell>
+                    <TableCell>{appointment.doctor}</TableCell>
+                    <TableCell>{appointment.formattedTime}</TableCell>
+                    <TableCell>{appointment.type}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          appointment.status === 'Confirmed'
+                            ? 'default'
+                            : appointment.status === 'Pending'
+                            ? 'secondary'
+                            : 'destructive'
+                        }
+                      >
+                        {appointment.status}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    No appointment history found.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+      <style jsx global>{`
+        @media print {
+          body, .dashboard-layout {
+            background-color: #fff;
+            margin: 0;
+            padding: 0;
+          }
+          .dashboard-layout > * {
+            display: none;
+          }
+          .dashboard-layout .printable-area, 
+          .dashboard-layout .printable-area * {
+            visibility: visible;
+            display: block;
+          }
+          .dashboard-layout .printable-area {
+            position: static;
+            width: 100%;
+            height: auto;
+            box-shadow: none;
+            border: none;
+            margin: 0;
+            padding: 20px;
+          }
+          .print\:hidden {
+            display: none;
+          }
+           main {
+             padding: 0 !important;
+          }
+          .flex.flex-col.gap-4 {
+              height: 100vh;
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+src/app/dashboard/appointment-confirmation/page.tsx
+
+'use client';
+
+import { Suspense, useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Printer, ArrowLeft } from 'lucide-react';
+import Image from 'next/image';
+
+type Appointment = {
+  patient: string;
+  doctor: string;
+  time: string;
+  type: string;
+  status: string;
+};
+
+function AppointmentConfirmationComponent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const appointmentString = searchParams.get('appointment');
+  const [formattedTime, setFormattedTime] = useState('');
+  const [appointment, setAppointment] = useState<Appointment | null>(null);
+
+  useEffect(() => {
+    if (appointmentString) {
+      try {
+        const parsedAppointment: Appointment = JSON.parse(appointmentString);
+        setAppointment(parsedAppointment);
+        setFormattedTime(new Date(parsedAppointment.time).toLocaleString('en-US', {
+          dateStyle: 'full',
+          timeStyle: 'short',
+        }));
+      } catch (e) {
+        console.error("Failed to parse appointment details", e);
+      }
+    }
+  }, [appointmentString]);
+  
+  if (!appointment) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
+          <p>No appointment details found.</p>
+          <Button onClick={() => router.push('/dashboard')}>
+              <ArrowLeft />
+              Back to Dashboard
+          </Button>
+      </div>
+    );
+  }
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleBackToDashboard = () => {
+    router.push('/dashboard');
+  };
+  
+  return (
+    <div className="flex flex-col gap-6 items-center print:items-start">
+      <div className="w-full max-w-2xl mx-auto">
+        <Card className="printable-area">
+          <CardHeader className="flex flex-col items-center text-center space-y-2 bg-primary/10 p-6">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-check-circle-2"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
+            <CardTitle className="text-3xl">Appointment Confirmed!</CardTitle>
+            <p className="text-muted-foreground">Your appointment has been successfully booked.</p>
+          </CardHeader>
+          <CardContent className="p-6 md:p-8 space-y-6">
+            <div className="space-y-2">
+              <h3 className="font-semibold">Patient Name:</h3>
+              <p>{appointment.patient}</p>
+            </div>
+            <div className="space-y-2">
+              <h3 className="font-semibold">Doctor:</h3>
+              <p>{appointment.doctor}</p>
+            </div>
+            <div className="space-y-2">
+              <h3 className="font-semibold">Date & Time:</h3>
+              <p>{formattedTime || '...'}</p>
+            </div>
+            <div className="space-y-2">
+              <h3 className="font-semibold">Appointment Type:</h3>
+              <p>{appointment.type}</p>
+            </div>
+             <div className="space-y-2">
+              <h3 className="font-semibold">Status:</h3>
+              <p className='font-medium text-green-600'>{appointment.status}</p>
+            </div>
+            <div className="text-center pt-4">
+              <Image 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(JSON.stringify(appointment))}`}
+                width={120}
+                height={120}
+                alt="QR Code for appointment details"
+                className="mx-auto"
+                data-ai-hint="qr code"
+              />
+               <p className="text-sm text-muted-foreground mt-2">Scan for details</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="flex gap-4 print:hidden">
+        <Button onClick={handleBackToDashboard} variant="outline">
+          <ArrowLeft className="mr-2" />
+          Back to Dashboard
+        </Button>
+        <Button onClick={handlePrint}>
+          <Printer className="mr-2" />
+          Print Confirmation
+        </Button>
+      </div>
+      
+      <style jsx global>{`
+        @media print {
+          body {
+            background-color: #fff;
+          }
+          body * {
+            visibility: hidden;
+          }
+          .printable-area, .printable-area * {
+            visibility: visible;
+          }
+          .printable-area {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            box-shadow: none;
+            margin: 0;
+            padding: 0;
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+export default function AppointmentConfirmationPage() {
+    return (
+        <Suspense fallback={<div className="text-center">Loading confirmation...</div>}>
+            <AppointmentConfirmationComponent />
+        </Suspense>
+    )
+}
